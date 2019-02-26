@@ -188,6 +188,7 @@ public class MainActivity extends AppCompatActivity {
             submit.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    if(input.length() != 0)
                     new SynthesisTask().execute(input.getText().toString());
                 }
             });
