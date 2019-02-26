@@ -113,7 +113,7 @@ public class MainActivity extends AppCompatActivity {
                     });
 
 
-                    Toast.makeText(MainActivity.this,"Recording...",Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this,"Listening...",Toast.LENGTH_SHORT).show();
 
 
                     capture = microphoneHelper.getInputStream(true);
@@ -255,7 +255,8 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
     }
 
     private SpeechToText initSpeechToTextService() {
-        IamOptions iamOptions = new IamOptions.Builder().apiKey("MlQXA7DTolsGoSCn2pDASfWEFZ6be5hancjsjElj3k3A").build();
+        String apiKey = getString(R.string.speech_text_iam_apikey);
+        IamOptions iamOptions = new IamOptions.Builder().apiKey(apiKey).build();
         SpeechToText service = new SpeechToText(iamOptions);
         service.setEndPoint(getString(R.string.speech_text_url));
         return service;
