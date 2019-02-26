@@ -140,6 +140,8 @@ public class MainActivity extends AppCompatActivity {
                     btnStopListen.setEnabled(false);
                     btnListen.setEnabled(true);
                     microphoneHelper.closeInputStream();
+                    if(transcript.length() != 0)
+                        new SynthesisTask().execute(transcript.getText().toString());
                 }
             });
 
@@ -151,7 +153,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                     if(input.length() != 0)
-                    new SynthesisTask().execute(input.getText().toString());
+                        new SynthesisTask().execute(input.getText().toString());
                 }
             });
         }
