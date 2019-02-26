@@ -47,7 +47,7 @@ import java.util.UUID;
 public class MainActivity extends AppCompatActivity {
 
     //Declare variables
-    Button btnRecord,btnStopRecord,btnPlay,btnStop,submit;
+    Button btnListen,btnStopListen,submit;
     String pathSave = "";
     MediaRecorder mediaRecorder;
     MediaPlayer mediaPlayer;
@@ -82,14 +82,12 @@ public class MainActivity extends AppCompatActivity {
 
         //Init View
         submit = (Button)findViewById(R.id.submit);
-        btnPlay = (Button)findViewById(R.id.btnPlay);
-        btnStop = (Button)findViewById(R.id.btnStop);
-        btnRecord = (Button)findViewById(R.id.btnStartRecord);
-        btnStopRecord = (Button)findViewById(R.id.btnStopRecord);
+        btnListen = (Button)findViewById(R.id.btnStartListen);
+        btnStopListen = (Button)findViewById(R.id.btnStopListen);
 
         //REQUEST RUN TIME PERMISSIONS
         if(checkPermissionFromDevice()){
-            btnRecord.setOnClickListener(new View.OnClickListener() {
+            btnListen.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     pathSave = Environment.getExternalStorageDirectory().getAbsolutePath()+"/"
@@ -109,10 +107,8 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            btnRecord.setEnabled(false);
-                            btnPlay.setEnabled(false);
-                            btnStop.setEnabled(false);
-                            btnStopRecord.setEnabled(true);
+                            btnListen.setEnabled(false);
+                            btnStopListen.setEnabled(true);
                         }
                     });
 
@@ -137,53 +133,19 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-            btnStopRecord.setOnClickListener(new View.OnClickListener() {
+            btnStopListen.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                    // mediaRecorder.stop();
-                    btnStopRecord.setEnabled(false);
-                    btnPlay.setEnabled(true);
-                    btnRecord.setEnabled(true);
-                    btnStop.setEnabled(false);
+                    btnStopListen.setEnabled(false);
+                    btnListen.setEnabled(true);
                     microphoneHelper.closeInputStream();
                 }
             });
 
-            btnPlay.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    btnStop.setEnabled(true);
-                    btnStopRecord.setEnabled(false);
-                    btnRecord.setEnabled(true);
-                    mediaPlayer = new MediaPlayer();
-                    try{
-                        mediaPlayer.setDataSource(pathSave);
-                        mediaPlayer.prepare();
-                    }
-                    catch(IOException e){
-                        e.printStackTrace();
-                    }
 
-                    mediaPlayer.start();
-                    Toast.makeText(MainActivity.this,"Playing...", Toast.LENGTH_SHORT).show();
-                }
-            });
 
-            btnStop.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    btnStopRecord.setEnabled(false);
-                    btnPlay.setEnabled(true);
-                    btnRecord.setEnabled(true);
-                    btnStop.setEnabled(false);
 
-                    if(mediaPlayer != null){
-                        mediaPlayer.stop();
-                        mediaPlayer.release();
-                        setupMediaRecorder();
-                    }
-                }
-            });
 
             submit.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -276,7 +238,7 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
         }
         @Override
         public void onDisconnected(){
-            btnRecord.setEnabled(true);
+            btnListen.setEnabled(true);
         }
     }
 
@@ -323,7 +285,12 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
                     .voice(SynthesizeOptions.Voice.EN_US_LISAVOICE)
                     .accept(SynthesizeOptions.Accept.AUDIO_WAV)
                     .build();
-            player.playStream(textService.synthesize(synthesizeOptions).execute());
+            try {
+                player.playStream(textService.synthesize(synthesizeOptions).execute());
+            }
+            catch(Exception e){
+                showError(e);
+            }
             return "Did synthesize";
         }
     }
