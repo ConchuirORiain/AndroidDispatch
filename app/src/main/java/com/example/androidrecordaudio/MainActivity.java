@@ -6,12 +6,14 @@ import android.media.AudioRecord;
 import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.AsyncTask;
+import android.os.CountDownTimer;
 import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -31,6 +33,7 @@ import com.ibm.watson.developer_cloud.android.library.audio.StreamPlayer;
 import com.ibm.watson.developer_cloud.android.library.audio.utils.ContentType;
 import com.ibm.watson.developer_cloud.service.security.IamOptions;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.SpeechToText;
+import com.ibm.watson.developer_cloud.speech_to_text.v1.model.AddWordsOptions;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.model.RecognizeOptions;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.model.SpeechRecognitionResults;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.websocket.BaseRecognizeCallback;
@@ -87,6 +90,7 @@ public class MainActivity extends AppCompatActivity {
 
         //REQUEST RUN TIME PERMISSIONS
         if(checkPermissionFromDevice()){
+            
             btnListen.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -213,6 +217,23 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                final String priorText = text;
+                new CountDownTimer(2000,1000){
+                    public void onTick(long millisuntilfinished){
+                    }
+
+                    @Override
+                    public void onFinish() {
+                        Log.i("Sequence", priorText);
+                        if(priorText.equals(text))
+                        {
+                            Log.i("Sequence 2", priorText);
+                            btnStopListen.setEnabled(false);
+                            btnListen.setEnabled(true);
+                            microphoneHelper.closeInputStream();
+                        }
+                    }
+                }.start();
                 transcript.setText(text);
             }
         });
