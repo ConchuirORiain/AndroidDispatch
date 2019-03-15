@@ -67,6 +67,7 @@ public class MainActivity extends AppCompatActivity {
     TextToSpeech textService;
     EditText input;
     StreamPlayer player = new StreamPlayer();
+    String priorText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
 
         //REQUEST RUN TIME PERMISSIONS
         if(checkPermissionFromDevice()){
-            
+
             btnListen.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -217,7 +218,7 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                final String priorText = text;
+                priorText = text;
                 new CountDownTimer(2000,1000){
                     public void onTick(long millisuntilfinished){
                     }
@@ -235,6 +236,7 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
                     }
                 }.start();
                 transcript.setText(text);
+                priorText = text;
             }
         });
     }
