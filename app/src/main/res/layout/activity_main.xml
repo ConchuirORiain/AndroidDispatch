@@ -2,6 +2,7 @@
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/home_layout"
     android:background="#d1f7ca"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -86,5 +87,11 @@
         android:text="Submit"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView2" />
+    <FrameLayout
+        android:id="@+id/scene_root"
+        android:layout_height="match_parent"
+        android:layout_width="match_parent">
+        <include layout="@layout/inner_scene" />
+    </FrameLayout>
 
 </android.support.constraint.ConstraintLayout>

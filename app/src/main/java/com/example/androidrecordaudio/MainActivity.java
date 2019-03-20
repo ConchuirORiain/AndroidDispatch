@@ -1,6 +1,7 @@
 package com.example.androidrecordaudio;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.media.AudioRecord;
 import android.media.MediaPlayer;
@@ -8,13 +9,19 @@ import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.CountDownTimer;
 import android.os.Environment;
+import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.transition.Scene;
+import android.transition.Transition;
+import android.transition.TransitionInflater;
+import android.transition.TransitionManager;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -31,6 +38,14 @@ import com.ibm.watson.developer_cloud.android.library.audio.MicrophoneHelper;
 import com.ibm.watson.developer_cloud.android.library.audio.MicrophoneInputStream;
 import com.ibm.watson.developer_cloud.android.library.audio.StreamPlayer;
 import com.ibm.watson.developer_cloud.android.library.audio.utils.ContentType;
+import com.ibm.watson.developer_cloud.assistant.v2.Assistant;
+import com.ibm.watson.developer_cloud.assistant.v2.model.CreateSessionOptions;
+import com.ibm.watson.developer_cloud.assistant.v2.model.MessageContext;
+import com.ibm.watson.developer_cloud.assistant.v2.model.MessageInput;
+import com.ibm.watson.developer_cloud.assistant.v2.model.MessageOptions;
+import com.ibm.watson.developer_cloud.assistant.v2.model.MessageResponse;
+import com.ibm.watson.developer_cloud.assistant.v2.model.SessionResponse;
+import com.ibm.watson.developer_cloud.http.ServiceCall;
 import com.ibm.watson.developer_cloud.service.security.IamOptions;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.SpeechToText;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.model.AddWordsOptions;
@@ -41,11 +56,20 @@ import com.ibm.watson.developer_cloud.text_to_speech.v1.TextToSpeech;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.websocket.RecognizeCallback;
 import com.ibm.watson.developer_cloud.text_to_speech.v1.model.SynthesizeOptions;
 
+
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Date;
 import java.util.UUID;
+
+import static com.ibm.watson.developer_cloud.http.HttpHeaders.USER_AGENT;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -69,10 +93,25 @@ public class MainActivity extends AppCompatActivity {
     StreamPlayer player = new StreamPlayer();
     String priorText;
 
+    Assistant watsonAssistant;
+    private SessionResponse watsonAssistantSession;
+    boolean initialRequest = false;
+    Context mContext;
+    MessageContext watsonContext;
+
+
+    //static final String watsonUrl = getString(R.string.watson_assistant_url);
+    //static final String POST_PARAMS = ""
+
+//    Scene mScene = new Scene((ViewGroup) findViewById(R.id.home_layout), (ViewGroup) findViewById(R.id.inner_scene));
+   // Transition fadeTransition = TransitionInflater.from(this).inflateTransition(R.transition.fade_transition);
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mContext = getApplicationContext();
 
         //Request variables
         speechService = initSpeechToTextService();
@@ -83,6 +122,8 @@ public class MainActivity extends AppCompatActivity {
 
 
         //add the request to the RequestQueue
+        initialRequest = true;
+        watsonAssistant = initAssistant();
 
         //Init View
         submit = (Button)findViewById(R.id.submit);
@@ -109,6 +150,7 @@ public class MainActivity extends AppCompatActivity {
                   //  catch (IOException e){
                  //       e.printStackTrace();
                 //    }
+                    //TransitionManager.go(mScene, fadeTransition);
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
@@ -142,11 +184,10 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                    // mediaRecorder.stop();
+                    sendMessage();
                     btnStopListen.setEnabled(false);
                     btnListen.setEnabled(true);
                     microphoneHelper.closeInputStream();
-                    if(transcript.length() != 0)
-                        new SynthesisTask().execute(transcript.getText().toString());
                 }
             });
 
@@ -220,7 +261,7 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
             public void run() {
                 priorText = text;
                 new CountDownTimer(2000,1000){
-                    public void onTick(long millisuntilfinished){
+                    public void onTick(long millisUntilFinished){
                     }
 
                     @Override
@@ -239,6 +280,7 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
                 priorText = text;
             }
         });
+
     }
 
     private class MicrophoneRecognizeDelegate extends BaseRecognizeCallback {
@@ -264,6 +306,8 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
         @Override
         public void onDisconnected(){
             btnListen.setEnabled(true);
+            sendMessage();
+            Log.d("MainActivity", "context: " + mContext.toString());
         }
     }
 
@@ -291,6 +335,63 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
         TextToSpeech service = new TextToSpeech(iamOptions);
         service.setEndPoint(getString(R.string.text_speech_url));
         return service;
+    }
+
+    private Assistant initAssistant() {
+        Assistant assistant = new Assistant("2019-20-03",
+                new IamOptions.Builder().apiKey(getString(R.string.watson_assistant_apikey)).build());
+        assistant.setEndPoint(getString(R.string.watson_assistant_url));
+        return assistant;
+    }
+
+    private void sendMessage() {
+
+        final String inputmessage = this.transcript.getText().toString();
+        Thread thread = new Thread(new Runnable() {
+            public void run() {
+                try {
+                    if (watsonAssistantSession == null) {
+                        ServiceCall<SessionResponse> call =
+                                watsonAssistant.createSession(new CreateSessionOptions.Builder().assistantId(mContext.getString(R.string.watson_assistant_id)).build());
+                        watsonAssistantSession = call.execute();
+                    }
+                    MessageInput messageInput;
+
+                    if(initialRequest){
+                        messageInput = new MessageInput.Builder()
+                                .text("")
+                                .build();
+                        initialRequest = false;
+                    }
+                    else {
+                        messageInput = new MessageInput.Builder()
+                                .text(inputmessage)
+                                .build();
+                    }
+                    MessageOptions options = new MessageOptions.Builder()
+                            .assistantId(mContext.getString(R.string.watson_assistant_id))
+                            .input(messageInput)
+                            .sessionId(watsonAssistantSession.getSessionId())
+                            .build();
+                    MessageResponse response = watsonAssistant.message(options).execute();
+                    Log.i("MainActivity", "run: "+response);
+                    final Message outMessage = new Message();
+                    if (response != null &&
+                            response.getOutput() != null &&
+                            !response.getOutput().getGeneric().isEmpty() &&
+                            "text".equals(response.getOutput().getGeneric().get(0).getResponseType())) {
+                        input.setText(response.getOutput().getGeneric().get(0).getText());
+                        // speak the message
+                        new SynthesisTask().execute(input.getText().toString());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        thread.start();
+
     }
 
     private void showError(final Exception e) {
@@ -321,5 +422,38 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
         }
     }
 
+    /*private static void sendPost() throws IOException{
+        URL obj = new URL(watsonUrl);
+        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+        con.setRequestMethod("POST");
+        con.setRequestProperty("User-Agent", USER_AGENT);
+        // For POST only - START
+        con.setDoOutput(true);
+        OutputStream os = con.getOutputStream();
+        os.write(POST_PARAMS.getBytes());
+        os.flush();
+        os.close();
+        // For POST only - END
+
+        int responseCode = con.getResponseCode();
+        System.out.println("POST Response Code :: " + responseCode);
+
+        if (responseCode == HttpURLConnection.HTTP_OK) { //success
+            BufferedReader in = new BufferedReader(new InputStreamReader(
+                    con.getInputStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
+            }
+            in.close();
+
+            // print result
+            System.out.println(response.toString());
+        } else {
+            System.out.println("POST request not worked");
+        }
+    }*/
 
 }
