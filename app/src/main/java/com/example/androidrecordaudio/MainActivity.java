@@ -152,15 +152,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void setupMediaRecorder(){
-        mediaRecorder = new MediaRecorder();
-        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-        mediaRecorder.setAudioSamplingRate(SAMPLING_RATE);
-        mediaRecorder.setOutputFile(pathSave);
-    }
 
+    //requests permission for internet,storage,recording access
     private void requestPermission(){
         ActivityCompat.requestPermissions(this,new String[]{
                 Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -171,6 +164,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    // just displays whether permission was granted or denied
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,@NonNull int[] grantResults){
          switch(requestCode){
@@ -187,6 +181,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //returns true if the device has all permissions needed
     private boolean checkPermissionFromDevice() {
         int writeExternalStorageResult =
                 ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
@@ -199,12 +194,14 @@ public class MainActivity extends AppCompatActivity {
                 internetAccessResult == PackageManager.PERMISSION_GRANTED;
     }
 
+    //should show the transcription of your speech, no longer works properly after connected to assistant
+    //Also will terminate the call after a certain period of inactivity
     private void showTranscription(final String text) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 priorText = text;
-                new CountDownTimer(2000,1000){
+                new CountDownTimer(1000,1000){
                     public void onTick(long millisUntilFinished){
                     }
 
@@ -225,6 +222,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
+    //This makes the microphone available for speech to text
     private void makeCall(){
         pathSave = Environment.getExternalStorageDirectory().getAbsolutePath()+"/"
                 + UUID.randomUUID().toString()+"_project_audio_.3gp";
@@ -267,6 +266,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }).start();
     }
+
+    //how speech to text is requested from ibm
     private class MicrophoneRecognizeDelegate extends BaseRecognizeCallback {
         @Override
         public void onTranscription(SpeechRecognitionResults speechResults) {
@@ -290,11 +291,11 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onDisconnected(){
             btnListen.setEnabled(true);
-            sendMessage();
+            sendMessage();  //after speech is translated, automatically send it to watson
             Log.d("MainActivity", "context: " + mContext.toString());
         }
     }
-
+    //speech to text builder
     private RecognizeOptions getRecognizeOptions(InputStream captureStream) {
         return new RecognizeOptions.Builder()
                 .audio(captureStream)
@@ -304,7 +305,7 @@ public class MainActivity extends AppCompatActivity {
                 .inactivityTimeout(2000)
                 .build();
     }
-
+    //initialising our speech to text service
     private SpeechToText initSpeechToTextService() {
         String apiKey = getString(R.string.speech_text_iam_apikey);
         IamOptions iamOptions = new IamOptions.Builder().apiKey(apiKey).build();
@@ -312,7 +313,7 @@ public class MainActivity extends AppCompatActivity {
         service.setEndPoint(getString(R.string.speech_text_url));
         return service;
     }
-
+    //initialising text to speech service
     private TextToSpeech initTextToSpeechService() {
         String apiKey = getString(R.string.text_speech_iam_apikey);
         IamOptions iamOptions = new IamOptions.Builder().apiKey(apiKey).build();
@@ -320,14 +321,14 @@ public class MainActivity extends AppCompatActivity {
         service.setEndPoint(getString(R.string.text_speech_url));
         return service;
     }
-
+    //initialising assistant
     private Assistant initAssistant() {
         Assistant assistant = new Assistant("2019-20-03",
                 new IamOptions.Builder().apiKey(getString(R.string.watson_assistant_apikey)).build());
         assistant.setEndPoint(getString(R.string.watson_assistant_url));
         return assistant;
     }
-
+    //sends text to watson and receives text, then should play it (doesn't play initial watson message for some reason)
     private void sendMessage() {
 
         final String inputmessage = this.transcript.getText().toString();
@@ -389,6 +390,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    //this is text to speech function (call by saying "new SynthesisTask().execute("the string you want converted to speech")"
     private class SynthesisTask extends AsyncTask<String, Void, String> {
         @Override
         protected String doInBackground(String... params) {
