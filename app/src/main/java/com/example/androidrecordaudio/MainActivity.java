@@ -15,24 +15,13 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.transition.Scene;
-import android.transition.Transition;
-import android.transition.TransitionInflater;
-import android.transition.TransitionManager;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 
 import com.ibm.watson.developer_cloud.android.library.audio.MicrophoneHelper;
 import com.ibm.watson.developer_cloud.android.library.audio.MicrophoneInputStream;
@@ -48,25 +37,15 @@ import com.ibm.watson.developer_cloud.assistant.v2.model.SessionResponse;
 import com.ibm.watson.developer_cloud.http.ServiceCall;
 import com.ibm.watson.developer_cloud.service.security.IamOptions;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.SpeechToText;
-import com.ibm.watson.developer_cloud.speech_to_text.v1.model.AddWordsOptions;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.model.RecognizeOptions;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.model.SpeechRecognitionResults;
 import com.ibm.watson.developer_cloud.speech_to_text.v1.websocket.BaseRecognizeCallback;
 import com.ibm.watson.developer_cloud.text_to_speech.v1.TextToSpeech;
-import com.ibm.watson.developer_cloud.speech_to_text.v1.websocket.RecognizeCallback;
 import com.ibm.watson.developer_cloud.text_to_speech.v1.model.SynthesizeOptions;
 
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.Date;
 import java.util.UUID;
 
 import static com.ibm.watson.developer_cloud.http.HttpHeaders.USER_AGENT;
@@ -77,9 +56,7 @@ public class MainActivity extends AppCompatActivity {
     Button btnListen,btnStopListen,submit;
     String pathSave = "";
     MediaRecorder mediaRecorder;
-    MediaPlayer mediaPlayer;
     TextView transcript;
-    AudioRecord audioRecord;
 
     final int SAMPLING_RATE = 32000;
     final int REQUEST_PERMISSION_CODE =1000;
@@ -96,8 +73,10 @@ public class MainActivity extends AppCompatActivity {
     Assistant watsonAssistant;
     private SessionResponse watsonAssistantSession;
     boolean initialRequest = false;
+    boolean calling;
+    boolean recording;
+    boolean receiving;
     Context mContext;
-    MessageContext watsonContext;
 
 
     //static final String watsonUrl = getString(R.string.watson_assistant_url);
@@ -123,6 +102,9 @@ public class MainActivity extends AppCompatActivity {
 
         //add the request to the RequestQueue
         initialRequest = true;
+        calling = true;
+        recording = false;
+        receiving = false;
         watsonAssistant = initAssistant();
 
         //Init View
@@ -136,46 +118,8 @@ public class MainActivity extends AppCompatActivity {
             btnListen.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    pathSave = Environment.getExternalStorageDirectory().getAbsolutePath()+"/"
-                            + UUID.randomUUID().toString()+"_project_audio_.3gp";
-                   // setupMediaRecorder();
-                   // try {
-                   //     mediaRecorder.prepare();
-                   //     mediaRecorder.start();
-                  //      btnStopRecord.setEnabled(true);
-                  //      btnPlay.setEnabled(false);
-                  //      btnRecord.setEnabled(false);
-                  //      btnStop.setEnabled(false);
-                  //  }
-                  //  catch (IOException e){
-                 //       e.printStackTrace();
-                //    }
-                    //TransitionManager.go(mScene, fadeTransition);
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            btnListen.setEnabled(false);
-                            btnStopListen.setEnabled(true);
-                        }
-                    });
+                    makeCall();
 
-
-                    Toast.makeText(MainActivity.this,"Listening...",Toast.LENGTH_SHORT).show();
-
-
-                    capture = microphoneHelper.getInputStream(true);
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            try{
-                                speechService.recognizeUsingWebSocket(getRecognizeOptions(capture),
-                                        new MicrophoneRecognizeDelegate());
-                            }
-                            catch(Exception e){
-                                showError(e);
-                            }
-                        }
-                    }).start();
 
                 }
             });
@@ -184,7 +128,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                    // mediaRecorder.stop();
-                    sendMessage();
+                    //sendMessage();
                     btnStopListen.setEnabled(false);
                     btnListen.setEnabled(true);
                     microphoneHelper.closeInputStream();
@@ -227,9 +171,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-@Override
-public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,@NonNull int[] grantResults){
-        switch(requestCode){
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,@NonNull int[] grantResults){
+         switch(requestCode){
             case REQUEST_PERMISSION_CODE:
             {
                    if(grantResults.length>0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
@@ -241,7 +185,7 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
             }
                 break;
         }
-}
+    }
 
     private boolean checkPermissionFromDevice() {
         int writeExternalStorageResult =
@@ -276,13 +220,53 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
                         }
                     }
                 }.start();
-                transcript.setText(text);
                 priorText = text;
+                transcript.setText(text);
+            }
+        });
+    }
+    private void makeCall(){
+        pathSave = Environment.getExternalStorageDirectory().getAbsolutePath()+"/"
+                + UUID.randomUUID().toString()+"_project_audio_.3gp";
+        // setupMediaRecorder();
+        // try {
+        //     mediaRecorder.prepare();
+        //     mediaRecorder.start();
+        //      btnStopRecord.setEnabled(true);
+        //      btnPlay.setEnabled(false);
+        //      btnRecord.setEnabled(false);
+        //      btnStop.setEnabled(false);
+        //  }
+        //  catch (IOException e){
+        //       e.printStackTrace();
+        //    }
+        //TransitionManager.go(mScene, fadeTransition);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                btnListen.setEnabled(false);
+                btnStopListen.setEnabled(true);
             }
         });
 
-    }
 
+        Toast.makeText(MainActivity.this,"Listening...",Toast.LENGTH_SHORT).show();
+
+
+        capture = microphoneHelper.getInputStream(true);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try{
+                    speechService.recognizeUsingWebSocket(getRecognizeOptions(capture),
+                            new MicrophoneRecognizeDelegate());
+                }
+                catch(Exception e){
+                    showError(e);
+                }
+            }
+        }).start();
+    }
     private class MicrophoneRecognizeDelegate extends BaseRecognizeCallback {
         @Override
         public void onTranscription(SpeechRecognitionResults speechResults) {
@@ -382,7 +366,9 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
                             "text".equals(response.getOutput().getGeneric().get(0).getResponseType())) {
                         input.setText(response.getOutput().getGeneric().get(0).getText());
                         // speak the message
-                        new SynthesisTask().execute(input.getText().toString());
+                        if(input.getText().equals("I found no incidents matching that description. Please wait while I transfer you to an operator"))
+                            calling = false;
+                        new SynthesisTask().execute(response.getOutput().getGeneric().get(0).getText());
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -391,7 +377,6 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
         });
 
         thread.start();
-
     }
 
     private void showError(final Exception e) {
@@ -422,38 +407,6 @@ public void onRequestPermissionsResult(int requestCode, @NonNull String[] permis
         }
     }
 
-    /*private static void sendPost() throws IOException{
-        URL obj = new URL(watsonUrl);
-        HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-        con.setRequestMethod("POST");
-        con.setRequestProperty("User-Agent", USER_AGENT);
-        // For POST only - START
-        con.setDoOutput(true);
-        OutputStream os = con.getOutputStream();
-        os.write(POST_PARAMS.getBytes());
-        os.flush();
-        os.close();
-        // For POST only - END
 
-        int responseCode = con.getResponseCode();
-        System.out.println("POST Response Code :: " + responseCode);
-
-        if (responseCode == HttpURLConnection.HTTP_OK) { //success
-            BufferedReader in = new BufferedReader(new InputStreamReader(
-                    con.getInputStream()));
-            String inputLine;
-            StringBuffer response = new StringBuffer();
-
-            while ((inputLine = in.readLine()) != null) {
-                response.append(inputLine);
-            }
-            in.close();
-
-            // print result
-            System.out.println(response.toString());
-        } else {
-            System.out.println("POST request not worked");
-        }
-    }*/
 
 }
