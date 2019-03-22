@@ -315,6 +315,7 @@ public class MainActivity extends AppCompatActivity {
     }
     //initialising text to speech service
     private TextToSpeech initTextToSpeechService() {
+        Log.d("test", "in init t2s");
         String apiKey = getString(R.string.text_speech_iam_apikey);
         IamOptions iamOptions = new IamOptions.Builder().apiKey(apiKey).build();
         TextToSpeech service = new TextToSpeech(iamOptions);
@@ -365,11 +366,17 @@ public class MainActivity extends AppCompatActivity {
                             response.getOutput() != null &&
                             !response.getOutput().getGeneric().isEmpty() &&
                             "text".equals(response.getOutput().getGeneric().get(0).getResponseType())) {
-                        input.setText(response.getOutput().getGeneric().get(0).getText());
+                        // loop through the rponses and concatenate the text
+                        String fullText = "";
+                        for(int i = 0; i < response.getOutput().getGeneric().size(); i++){
+                            fullText += response.getOutput().getGeneric().get(i).getText();
+                        }
+                        Log.d("fulltext", fullText);
+                        input.setText(fullText);//response.getOutput().getGeneric().get(0).getText());
                         // speak the message
                         if(input.getText().equals("I found no incidents matching that description. Please wait while I transfer you to an operator"))
                             calling = false;
-                        new SynthesisTask().execute(response.getOutput().getGeneric().get(0).getText());
+                        new SynthesisTask().execute(fullText);//response.getOutput().getGeneric().get(0).getText());
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
