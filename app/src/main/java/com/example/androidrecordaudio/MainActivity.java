@@ -23,6 +23,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.google.android.gms.maps.CameraUpdate;
+import com.google.android.gms.maps.MapsInitializer;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.ibm.watson.developer_cloud.android.library.audio.MicrophoneHelper;
 import com.ibm.watson.developer_cloud.android.library.audio.MicrophoneInputStream;
 import com.ibm.watson.developer_cloud.android.library.audio.StreamPlayer;
@@ -48,9 +51,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import android.location.Location;
+import android.location.LocationManager;
+import android.location.LocationListener;
+import android.Manifest;
+
 import static com.ibm.watson.developer_cloud.http.HttpHeaders.USER_AGENT;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,LocationListener {
 
     //Declare variables
     Button btnListen,btnStopListen,submit;
@@ -77,6 +91,11 @@ public class MainActivity extends AppCompatActivity {
     boolean recording;
     boolean receiving;
     Context mContext;
+    private GoogleMap mMap;
+    private GoogleMap mgoogleMap;
+    CameraPosition cameraPosition;
+    LocationManager locationManager;
+    Location locationCurrent;
 
 
     //static final String watsonUrl = getString(R.string.watson_assistant_url);
@@ -91,6 +110,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mContext = getApplicationContext();
+
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
 
         //Request variables
         speechService = initSpeechToTextService();
@@ -415,6 +439,89 @@ public class MainActivity extends AppCompatActivity {
             return "Did synthesize";
         }
     }
+
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+
+        LatLng myLatLng;
+        MapsInitializer.initialize(mContext);
+        mgoogleMap = googleMap;
+        mgoogleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+        cameraPosition = CameraPosition.builder().target(new LatLng(53.3498, -6.2603)).zoom(11).bearing(0).build();
+        mgoogleMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+        if (ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                        PackageManager.PERMISSION_GRANTED) {
+            try {
+                locationManager = (LocationManager)mContext.getSystemService(Context.LOCATION_SERVICE);
+                // locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 5, this);
+                locationCurrent = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                onLocationChanged(locationCurrent);
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 5, this);
+            }
+            catch(SecurityException e) {
+                Log.i("LOCATION", "onCreateView: Cannot aquire location");
+            }
+            LatLng latLng = new LatLng(locationCurrent.getLatitude(),locationCurrent.getLongitude());
+            CameraPosition cameraPosition= new CameraPosition(latLng,15,0,0);
+            CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition);
+            mgoogleMap.animateCamera(cameraUpdate);
+
+//
+//            if (ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+//                    PackageManager.PERMISSION_GRANTED &&
+//                    ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
+//                            PackageManager.PERMISSION_GRANTED) {
+            mgoogleMap.setMyLocationEnabled(true);
+            mgoogleMap.getUiSettings().setMyLocationButtonEnabled(true);
+
+//            }
+
+
+        }
+// else {
+//            requestPermissions(new String[]{
+//                    Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
+//        }
+//        mMap = googleMap;
+//
+//        // Add a marker in Sydney, Australia, and move the camera.
+//        LatLng sydney = new LatLng(-34, 151);
+//        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
+//        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+    }
+
+
+    public void onLocationChanged(Location location) {
+        UpdateMap(location);
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
+    }
+
+
+    public void UpdateMap(Location location) {
+
+        if(mgoogleMap != null) {
+            LatLng latLngUpdate = new LatLng(location.getLatitude(), location.getLongitude());
+            mgoogleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLngUpdate , mgoogleMap.getCameraPosition().zoom));
+        }
+    }
+
+
 
 
 
