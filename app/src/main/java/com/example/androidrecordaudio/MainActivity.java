@@ -427,47 +427,17 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mgoogleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         cameraPosition = CameraPosition.builder().target(new LatLng(53.3498, -6.2603)).zoom(11).bearing(0).build();
         mgoogleMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-//        if (ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
-//                PackageManager.PERMISSION_GRANTED &&
-//                ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
-//                        PackageManager.PERMISSION_GRANTED) {
-//            try {
-//                locationManager = (LocationManager)mContext.getSystemService(Context.LOCATION_SERVICE);
-//                // locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 5, this);
-//                locationCurrent = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-//                //onLocationChanged(locationCurrent);
-//                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 5, this);
-//            }
-//            catch(SecurityException e) {
-//                Log.i("LOCATION", "onCreateView: Cannot aquire location");
-//            }
-         //   LatLng latLng = new LatLng(locationCurrent.getLatitude(),locationCurrent.getLongitude());
-//            CameraPosition cameraPosition= new CameraPosition(latLng,15,0,0);
-//            CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition);
-//            mgoogleMap.animateCamera(cameraUpdate);
-
-//
-//            if (ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
-//                    PackageManager.PERMISSION_GRANTED &&
-//                    ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
-//                            PackageManager.PERMISSION_GRANTED) {
-//            mgoogleMap.setMyLocationEnabled(true);
-//            mgoogleMap.getUiSettings().setMyLocationButtonEnabled(true);
-
-//            }
 
 
-    //    }
-// else {
-//            requestPermissions(new String[]{
-//                    Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
-//        }
-//        mMap = googleMap;
-//
-//        // Add a marker in Sydney, Australia, and move the camera.
-//        LatLng sydney = new LatLng(-34, 151);
-//        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-//        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+
+            if (ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                    PackageManager.PERMISSION_GRANTED &&
+                    ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                            PackageManager.PERMISSION_GRANTED) {
+            mgoogleMap.setMyLocationEnabled(true);
+            mgoogleMap.getUiSettings().setMyLocationButtonEnabled(true);
+
+            }
     }
 
 
