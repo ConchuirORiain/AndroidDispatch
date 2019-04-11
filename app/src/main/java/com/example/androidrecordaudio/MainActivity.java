@@ -69,10 +69,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     //Declare variables
     Button btnListen,btnStopListen,submit,btnSendMessage;
     String pathSave = "";
-    MediaRecorder mediaRecorder;
     EditText transcript;
 
-    final int SAMPLING_RATE = 32000;
     final int REQUEST_PERMISSION_CODE =1000;
 
     SpeechToText speechService;
@@ -97,13 +95,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     LocationManager locationManager;
     Location locationCurrent;
 
-
-    //static final String watsonUrl = getString(R.string.watson_assistant_url);
-    //static final String POST_PARAMS = ""
-
-//    Scene mScene = new Scene((ViewGroup) findViewById(R.id.home_layout), (ViewGroup) findViewById(R.id.inner_scene));
-   // Transition fadeTransition = TransitionInflater.from(this).inflateTransition(R.transition.fade_transition);
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -122,15 +113,12 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         microphoneHelper = new MicrophoneHelper(this);
         watsonMessage = findViewById(R.id.inputText);
         textService = initTextToSpeechService();
-
-
+        watsonAssistant = initAssistant();
 
         initialRequest = true;
         calling = true;
         recording = false;
         receiving = false;
-        watsonAssistant = initAssistant();
-
 
         submit = (Button)findViewById(R.id.submit);
         btnListen = (Button)findViewById(R.id.btnStartListen);
@@ -152,9 +140,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             btnStopListen.setOnClickListener(new View.OnClickListener() {
                 @Override
-                public void onClick(View v) {
-                   // mediaRecorder.stop();
-                    //sendMessage();
+                public void onClick(View v) {;
                     btnStopListen.setEnabled(false);
                     btnListen.setEnabled(true);
                     microphoneHelper.closeInputStream();
@@ -384,7 +370,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             response.getOutput() != null &&
                             !response.getOutput().getGeneric().isEmpty() &&
                             "text".equals(response.getOutput().getGeneric().get(0).getResponseType())) {
-                        // loop through the rponses and concatenate the text
+                        // loop through the responses and concatenate the text
                         String fullText = "";
                         for(int i = 0; i < response.getOutput().getGeneric().size(); i++){
                             fullText += response.getOutput().getGeneric().get(i).getText();
