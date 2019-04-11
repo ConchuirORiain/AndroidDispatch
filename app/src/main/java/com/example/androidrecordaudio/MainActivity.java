@@ -67,10 +67,10 @@ import static com.ibm.watson.developer_cloud.http.HttpHeaders.USER_AGENT;
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback,LocationListener {
 
     //Declare variables
-    Button btnListen,btnStopListen,submit;
+    Button btnListen,btnStopListen,submit,btnSendMessage;
     String pathSave = "";
     MediaRecorder mediaRecorder;
-    TextView transcript;
+    EditText transcript;
 
     final int SAMPLING_RATE = 32000;
     final int REQUEST_PERMISSION_CODE =1000;
@@ -80,7 +80,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     MicrophoneHelper microphoneHelper;
 
     TextToSpeech textService;
-    EditText input;
+    TextView watsonMessage;
     StreamPlayer player = new StreamPlayer();
     String priorText;
 
@@ -118,23 +118,24 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         //Request variables
         speechService = initSpeechToTextService();
-        transcript = (TextView) findViewById(R.id.transcript);
+        transcript = (EditText) findViewById(R.id.transcript);
         microphoneHelper = new MicrophoneHelper(this);
-        input = findViewById(R.id.inputText);
+        watsonMessage = findViewById(R.id.inputText);
         textService = initTextToSpeechService();
 
 
-        //add the request to the RequestQueue
+
         initialRequest = true;
         calling = true;
         recording = false;
         receiving = false;
         watsonAssistant = initAssistant();
 
-        //Init View
+
         submit = (Button)findViewById(R.id.submit);
         btnListen = (Button)findViewById(R.id.btnStartListen);
         btnStopListen = (Button)findViewById(R.id.btnStopListen);
+        btnSendMessage = (Button)findViewById(R.id.btnSendMessage);
 
         //REQUEST RUN TIME PERMISSIONS
         if(checkPermissionFromDevice()){
@@ -142,6 +143,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
             btnListen.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    calling = true;
                     makeCall();
 
 
@@ -159,15 +161,21 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             });
 
-
+            btnSendMessage.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v){
+                    if(!calling)
+                        sendMessage();
+                }
+            });
 
 
 
             submit.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    if(input.length() != 0)
-                        new SynthesisTask().execute(input.getText().toString());
+                    if(watsonMessage.length() != 0)
+                        new SynthesisTask().execute(watsonMessage.getText().toString());
                 }
             });
         }
@@ -251,19 +259,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void makeCall(){
         pathSave = Environment.getExternalStorageDirectory().getAbsolutePath()+"/"
                 + UUID.randomUUID().toString()+"_project_audio_.3gp";
-        // setupMediaRecorder();
-        // try {
-        //     mediaRecorder.prepare();
-        //     mediaRecorder.start();
-        //      btnStopRecord.setEnabled(true);
-        //      btnPlay.setEnabled(false);
-        //      btnRecord.setEnabled(false);
-        //      btnStop.setEnabled(false);
-        //  }
-        //  catch (IOException e){
-        //       e.printStackTrace();
-        //    }
-        //TransitionManager.go(mScene, fadeTransition);
+
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -304,8 +300,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         @Override
         public void onError(Exception e) {
             try {
-                // This is critical to avoid hangs
-                // (see https://github.com/watson-developer-cloud/android-sdk/issues/59)
                 capture.close();
             } catch (IOException e1) {
                 e1.printStackTrace();
@@ -314,6 +308,7 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         @Override
         public void onDisconnected(){
+            calling = false;
             btnListen.setEnabled(true);
             sendMessage();  //after speech is translated, automatically send it to watson
             Log.d("MainActivity", "context: " + mContext.toString());
@@ -385,7 +380,6 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             .build();
                     MessageResponse response = watsonAssistant.message(options).execute();
                     Log.i("MainActivity", "run: "+response);
-                    final Message outMessage = new Message();
                     if (response != null &&
                             response.getOutput() != null &&
                             !response.getOutput().getGeneric().isEmpty() &&
@@ -396,10 +390,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                             fullText += response.getOutput().getGeneric().get(i).getText();
                         }
                         Log.d("fulltext", fullText);
-                        input.setText(fullText);//response.getOutput().getGeneric().get(0).getText());
+                        watsonMessage.setText(fullText);//response.getOutput().getGeneric().get(0).getText());
                         // speak the message
-                        if(input.getText().equals("I found no incidents matching that description. Please wait while I transfer you to an operator"))
-                            calling = false;
                         new SynthesisTask().execute(fullText);//response.getOutput().getGeneric().get(0).getText());
                     }
                 } catch (Exception e) {
@@ -449,37 +441,37 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
         mgoogleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         cameraPosition = CameraPosition.builder().target(new LatLng(53.3498, -6.2603)).zoom(11).bearing(0).build();
         mgoogleMap.moveCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-        if (ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
-                        PackageManager.PERMISSION_GRANTED) {
-            try {
-                locationManager = (LocationManager)mContext.getSystemService(Context.LOCATION_SERVICE);
-                // locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 5, this);
-                locationCurrent = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                onLocationChanged(locationCurrent);
-                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 5, this);
-            }
-            catch(SecurityException e) {
-                Log.i("LOCATION", "onCreateView: Cannot aquire location");
-            }
-            LatLng latLng = new LatLng(locationCurrent.getLatitude(),locationCurrent.getLongitude());
-            CameraPosition cameraPosition= new CameraPosition(latLng,15,0,0);
-            CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition);
-            mgoogleMap.animateCamera(cameraUpdate);
+//        if (ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+//                PackageManager.PERMISSION_GRANTED &&
+//                ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
+//                        PackageManager.PERMISSION_GRANTED) {
+//            try {
+//                locationManager = (LocationManager)mContext.getSystemService(Context.LOCATION_SERVICE);
+//                // locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 5, this);
+//                locationCurrent = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+//                //onLocationChanged(locationCurrent);
+//                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 5, this);
+//            }
+//            catch(SecurityException e) {
+//                Log.i("LOCATION", "onCreateView: Cannot aquire location");
+//            }
+         //   LatLng latLng = new LatLng(locationCurrent.getLatitude(),locationCurrent.getLongitude());
+//            CameraPosition cameraPosition= new CameraPosition(latLng,15,0,0);
+//            CameraUpdate cameraUpdate = CameraUpdateFactory.newCameraPosition(cameraPosition);
+//            mgoogleMap.animateCamera(cameraUpdate);
 
 //
 //            if (ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_FINE_LOCATION) ==
 //                    PackageManager.PERMISSION_GRANTED &&
 //                    ContextCompat.checkSelfPermission(mContext, android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
 //                            PackageManager.PERMISSION_GRANTED) {
-            mgoogleMap.setMyLocationEnabled(true);
-            mgoogleMap.getUiSettings().setMyLocationButtonEnabled(true);
+//            mgoogleMap.setMyLocationEnabled(true);
+//            mgoogleMap.getUiSettings().setMyLocationButtonEnabled(true);
 
 //            }
 
 
-        }
+    //    }
 // else {
 //            requestPermissions(new String[]{
 //                    Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 1);
